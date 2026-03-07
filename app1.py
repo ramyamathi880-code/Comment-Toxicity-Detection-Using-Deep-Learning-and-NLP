@@ -1,32 +1,52 @@
 import streamlit as st
+import pandas as pd
+import numpy as np
 import pickle
 import re
 
-# Load saved model and vectorizer
-model = pickle.load(open("toxic_model.pkl", "rb"))
-tfidf = pickle.load(open("tfidf.pkl", "rb"))
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+
+# -----------------------------
+# Load Model and Tokenizer
+# -----------------------------
+
+model = load_model("toxicity_model.h5")
+with open("tokenizer.pkl", "rb") as f:
+    tokenizer = pickle.load(f)
+
+
+# -----------------------------
+# Text Cleaning Function
+# -----------------------------
 
 def clean_text(text):
     text = text.lower()
-    text = re.sub(r"[^a-zA-Z]", " ", text)
+    text = re.sub(r'[^a-zA-Z]', ' ', text)
     return text
 
-st.set_page_config(page_title="Toxic Comment Detector")
 
-st.title("💬 Toxic Comment Detection System")
-st.write("Enter a comment to check whether it is toxic or not.")
+# -----------------------------
+# Page Title
+# -----------------------------
 
-user_input = st.text_area("Enter your comment:")
+st.title("Deep Learning Comment Toxicity Detector")
+st.write("This app detects whether a comment is toxic or non-toxic.")
 
+# -----------------------------
+# Single Comment Prediction
+# -----------------------------
+
+st.subheader("Check Single Comment")
+comment = st.text_area("Enter a comment")
 if st.button("Predict"):
-    if user_input.strip() == "":
-        st.warning("Please enter some text")
-    else:
-        cleaned = clean_text(user_input)
-        vector = tfidf.transform([cleaned])
-        prediction = model.predict(vector)[0]
 
-        if prediction == 1:
-            st.error("⚠️ Toxic Comment Detected")
-        else:
-            st.success("✅ This is a Non-Toxic Comment")
+    cleaned = clean_text(comment)
+    seq = tokenizer.texts_to_sequences([cleaned])
+    padded = pad_sequences(seq, maxlen=200)
+    prediction = model.predict(padded)
+    if prediction[0][0] > 0.5:
+          st.error("Toxic Comment")
+    else:
+          st.success("Non Toxic Comment")
+
